@@ -5,11 +5,17 @@
   - /opt/kube/images
   - /opt/kube/kube-ovn
 
+- name: 配置 crd.yaml 文件
+  template: src=crd.yaml.j2 dest=/opt/kube/kube-ovn/crd.yaml
+
 - name: 配置 kube-ovn.yaml 文件
   template: src=kube-ovn.yaml.j2 dest=/opt/kube/kube-ovn/kube-ovn.yaml
 
 - name: 配置 ovn.yaml 文件
   template: src=ovn.yaml.j2 dest=/opt/kube/kube-ovn/ovn.yaml
+
+- name: 配置 kubectl plugin
+  template: src=kubectl-ko.j2 dest=/usr/local/bin/kubectl-ko mode=0755
 
 # 【可选】推送离线镜像，可以忽略执行错误
 - block:
@@ -23,7 +29,7 @@
       copy: src={{ base_dir }}/down/{{ item }} dest=/opt/kube/images/{{ item }}
       when: 'item in download_info.stdout'
       with_items:
-      - "pause_3.1.tar"
+      - "pause.tar"
       - "{{ kube_ovn_offline }}"
       ignore_errors: true
 
@@ -35,7 +41,7 @@
     - name: 导入 kube_ovn的离线镜像（若执行失败，可忽略）
       shell: "{{ bin_dir }}/docker load -i /opt/kube/images/{{ item }}"
       with_items:
-      - "pause_3.1.tar"
+      - "pause.tar"
       - "{{ kube_ovn_offline }}"
       ignore_errors: true
       when: "item in image_info.stdout and CONTAINER_RUNTIME == 'docker'"
@@ -43,7 +49,7 @@
     - name: 导入 kube_ovn的离线镜像（若执行失败，可忽略）
       shell: "{{ bin_dir }}/ctr -n=k8s.io images import /opt/kube/images/{{ item }}"
       with_items:
-      - "pause_3.1.tar"
+      - "pause.tar"
       - "{{ kube_ovn_offline }}"
       ignore_errors: true
       when: "item in image_info.stdout and CONTAINER_RUNTIME == 'containerd'"
@@ -51,6 +57,7 @@
 # 只需单节点执行一次
 - name: 运行 kube-ovn网络
   shell: "{{ bin_dir }}/kubectl label node {{ OVN_DB_NODE }} kube-ovn/role=master --overwrite && \
+    {{ bin_dir }}/kubectl apply -f /opt/kube/kube-ovn/crd.yaml && sleep 5 && \
 	{{ bin_dir }}/kubectl apply -f /opt/kube/kube-ovn/ovn.yaml && sleep 5 && \
 	{{ bin_dir }}/kubectl apply -f /opt/kube/kube-ovn/kube-ovn.yaml"
   run_once: true

@@ -24,28 +24,30 @@ $ ansible-playbook /etc/ansible/roles/helm/helm.yml
 - 6-配置helm客户端使用tls方式与tiller服务端通讯
 
 ## 安全安装 helm（离线）
-在内网环境中，由于不能访问互联网，无法连接repo地址，使用上述的在线安装helm的方式会报错。因此需要使用离线安装的方法来安装。
+在内网环境中，由于不能访问互联网，无法连接repo地址，使用上述的在线安装helm的方式会报错。因此需要使用离线安装的方法来安装。要注意的是tiller的镜像版本必须为v2.14.1，否则会不匹配。
 离线安装步骤：
+
 ```bash
 # 1.创建本地repo
 mkdir -p /opt/helm-repo
 # 2.启动helm repo server,如果要其他服务器访问，改为本地IP
 nohup helm serve --address 127.0.0.1:8879 --repo-path /opt/helm-repo &
 # 3.更改helm 配置文件
-将/etc/ansible/role/helm/default/main.yml中repo的地址改为 http://127.0.0.1:8879
-cat <<EOF >/etc/ansible/role/helm/default/main.yml
+将/etc/ansible/roles/helm/defaults/main.yml中repo的地址改为 http://127.0.0.1:8879
+cat <<EOF >/etc/ansible/roles/helm/defaults/main.yml
 helm_namespace: kube-system 
 helm_cert_cn: helm001
 tiller_sa: tiller
 tiller_cert_cn: tiller001
-tiller_image: jmgao1983/tiller:v2.9.1
+tiller_image: easzlab/tiller:v2.14.1
 #repo_url: https://kubernetes-charts.storage.googleapis.com
 repo_url: http://127.0.0.1:8879
+history_max: 5
 # 如果默认官方repo 网络访问不稳定可以使用如下的阿里云镜像repo
 #repo_url: https://kubernetes.oss-cn-hangzhou.aliyuncs.com/charts
 EOF
 # 4.运行安全helm命令
-ansible-playbook /etc/ansible/role/helm/helm.yml 
+ansible-playbook /etc/ansible/roles/helm/helm.yml 
 ```
 ## 使用helm安装应用到k8s上
 
